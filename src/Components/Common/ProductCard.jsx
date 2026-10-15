@@ -1,187 +1,433 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
-  FiShoppingBag,
+  Link,
+} from "react-router-dom";
+
+import {
   FiHeart,
+  FiShoppingCart,
   FiStar,
   FiEye,
 } from "react-icons/fi";
 
 import {
-  formatPrice,
-} from "../../data/products";
-
-import { useAuth } from "../../context/AuthContext";
+  useAuth,
+} from "../../context/AuthContext";
 
 import LoginRequiredModal from "./LoginRequiredModal";
+
+import {
+  formatPrice,
+} from "../../data/products";
 
 const ProductCard = ({ product }) => {
   const { user } = useAuth();
 
-  const [showLoginModal, setShowLoginModal] =
-    useState(false);
+  // =========================
+  // STATES
+  // =========================
 
-  const addToCart = () => {
-    if (!user) {
-      setShowLoginModal(true);
+  const [
+    loginModalOpen,
+    setLoginModalOpen,
+  ] = useState(false);
+
+  const [
+    isWishlisted,
+    setIsWishlisted,
+  ] = useState(false);
+
+  // =========================
+  // CHECK WISHLIST
+  // =========================
+
+  useEffect(() => {
+    // Login nahi hai
+    if (
+      !user ||
+      user.role !== "customer"
+    ) {
+      setIsWishlisted(false);
       return;
     }
 
-    const key = `nexaCart_${user.email}`;
+    const wishlistKey =
+      `nexaWishlist_${user.email}`;
 
-    const cart = JSON.parse(
-      localStorage.getItem(key) || "[]"
-    );
+    const wishlist =
+      JSON.parse(
+        localStorage.getItem(
+          wishlistKey
+        )
+      ) || [];
 
-    const existing = cart.find(
-      (item) => item.id === product.id
-    );
+    const exists =
+      wishlist.some(
+        (item) =>
+          item.id === product.id
+      );
 
-    const updatedCart = existing
-      ? cart.map((item) =>
+    setIsWishlisted(exists);
+
+  }, [
+    user,
+    product.id,
+  ]);
+
+  // =========================
+  // ADD TO CART
+  // =========================
+
+  const handleAddToCart = () => {
+    // User login nahi hai
+    if (
+      !user ||
+      user.role !== "customer"
+    ) {
+      setLoginModalOpen(true);
+      return;
+    }
+
+    const cartKey =
+      `nexaCart_${user.email}`;
+
+    const cart =
+      JSON.parse(
+        localStorage.getItem(
+          cartKey
+        )
+      ) || [];
+
+    // Check same product
+    const existingProduct =
+      cart.find(
+        (item) =>
+          item.id === product.id
+      );
+
+    let updatedCart;
+
+    if (existingProduct) {
+      // Same product already hai
+      // To quantity increase karo
+
+      updatedCart =
+        cart.map((item) =>
           item.id === product.id
             ? {
                 ...item,
-                quantity: item.quantity + 1,
+                quantity:
+                  (item.quantity ||
+                    1) + 1,
               }
             : item
-        )
-      : [
-          ...cart,
-          {
-            ...product,
-            quantity: 1,
-          },
-        ];
+        );
+    } else {
+      // New product
+      // quantity 1 ke saath add
 
+      updatedCart = [
+        ...cart,
+        {
+          ...product,
+          quantity: 1,
+        },
+      ];
+    }
+
+    // Save cart
     localStorage.setItem(
-      key,
-      JSON.stringify(updatedCart)
+      cartKey,
+      JSON.stringify(
+        updatedCart
+      )
     );
 
+    // Navbar ko update batao
     window.dispatchEvent(
-      new Event("cartUpdated")
+      new Event(
+        "cartUpdated"
+      )
     );
   };
 
-  const addToWishlist = () => {
-    if (!user) {
-      setShowLoginModal(true);
+  // =========================
+  // ADD / REMOVE WISHLIST
+  // =========================
+
+  const handleWishlist = () => {
+    // User login nahi hai
+    if (
+      !user ||
+      user.role !== "customer"
+    ) {
+      setLoginModalOpen(true);
       return;
     }
 
-    const key = `nexaWishlist_${user.email}`;
+    const wishlistKey =
+      `nexaWishlist_${user.email}`;
 
-    const wishlist = JSON.parse(
-      localStorage.getItem(key) || "[]"
-    );
+    const wishlist =
+      JSON.parse(
+        localStorage.getItem(
+          wishlistKey
+        )
+      ) || [];
 
-    const exists = wishlist.some(
-      (item) => item.id === product.id
-    );
-
-    if (!exists) {
-      localStorage.setItem(
-        key,
-        JSON.stringify([
-          ...wishlist,
-          product,
-        ])
+    const alreadyExists =
+      wishlist.some(
+        (item) =>
+          item.id === product.id
       );
 
-      window.dispatchEvent(
-        new Event("wishlistUpdated")
-      );
+    let updatedWishlist;
+
+    // =========================
+    // ALREADY WISHLISTED
+    // REMOVE
+    // =========================
+
+    if (alreadyExists) {
+      updatedWishlist =
+        wishlist.filter(
+          (item) =>
+            item.id !== product.id
+        );
+
+      setIsWishlisted(false);
     }
+
+    // =========================
+    // NOT WISHLISTED
+    // ADD
+    // =========================
+
+    else {
+      updatedWishlist = [
+        ...wishlist,
+        product,
+      ];
+
+      setIsWishlisted(true);
+    }
+
+    // Save Wishlist
+    localStorage.setItem(
+      wishlistKey,
+      JSON.stringify(
+        updatedWishlist
+      )
+    );
+
+    // Navbar wishlist count update
+    window.dispatchEvent(
+      new Event(
+        "wishlistUpdated"
+      )
+    );
   };
+
+  // =========================
+  // DISCOUNT
+  // =========================
+
+  const discount =
+    product.oldPrice &&
+    product.price
+      ? Math.round(
+          ((product.oldPrice -
+            product.price) /
+            product.oldPrice) *
+            100
+        )
+      : 0;
 
   return (
     <>
-      <div className="group overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 transition-all duration-300 hover:-translate-y-2 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-950/30">
+      <article className="group overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 transition duration-300 hover:-translate-y-2 hover:border-slate-700 hover:shadow-2xl hover:shadow-blue-950/30">
 
-        <div className="relative h-64 overflow-hidden bg-slate-800">
+        {/* =========================
+            IMAGE AREA
+        ========================== */}
 
-          <Link to={`/product/${product.id}`}>
+        <div className="relative overflow-hidden bg-slate-800">
+
+          <Link
+            to={`/product/${product.id}`}
+          >
             <img
               src={product.image}
               alt={product.name}
               loading="lazy"
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+              className="h-72 w-full object-cover transition duration-700 group-hover:scale-110"
             />
           </Link>
 
-          <span className="absolute left-4 top-4 rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">
-            SALE
-          </span>
+          {/* IMAGE OVERLAY */}
+
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
+
+          {/* =========================
+              DISCOUNT BADGE
+          ========================== */}
+
+          {discount > 0 && (
+            <span className="absolute left-4 top-4 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-lg">
+              {discount}% OFF
+            </span>
+          )}
+
+          {/* =========================
+              WISHLIST BUTTON
+          ========================== */}
 
           <button
             type="button"
-            onClick={addToWishlist}
-            className="absolute right-4 top-4 rounded-full bg-white p-3 text-slate-800 shadow-lg transition hover:text-red-500"
+            onClick={
+              handleWishlist
+            }
+            className={`absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition duration-300 ${
+              isWishlisted
+                ? "border-red-500 bg-red-500 text-white"
+                : "border-white/20 bg-slate-950/70 text-white hover:border-red-500 hover:bg-red-500 hover:text-white"
+            }`}
+            title={
+              isWishlisted
+                ? "Remove from Wishlist"
+                : "Add to Wishlist"
+            }
           >
-            <FiHeart />
+            <FiHeart
+              size={20}
+              className={
+                isWishlisted
+                  ? "fill-current"
+                  : ""
+              }
+            />
           </button>
+
+          {/* =========================
+              QUICK VIEW
+          ========================== */}
 
           <Link
             to={`/product/${product.id}`}
-            className="absolute bottom-4 right-4 rounded-full bg-slate-950/80 p-3 text-white opacity-0 backdrop-blur transition group-hover:opacity-100"
+            className="absolute bottom-4 right-4 flex h-11 w-11 translate-y-5 items-center justify-center rounded-full border border-white/20 bg-slate-950/80 text-white opacity-0 backdrop-blur-md transition duration-300 hover:bg-blue-600 group-hover:translate-y-0 group-hover:opacity-100"
+            title="View Product"
           >
-            <FiEye />
+            <FiEye size={19} />
           </Link>
 
         </div>
 
+        {/* =========================
+            PRODUCT INFORMATION
+        ========================== */}
+
         <div className="p-5">
 
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
+          {/* CATEGORY */}
+
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-400">
             {product.category}
           </p>
 
-          <Link to={`/product/${product.id}`}>
-            <h3 className="mt-2 text-lg font-bold text-white transition hover:text-blue-400">
+          {/* PRODUCT NAME */}
+
+          <Link
+            to={`/product/${product.id}`}
+          >
+            <h3 className="mt-2 line-clamp-1 text-lg font-bold text-white transition hover:text-blue-400">
               {product.name}
             </h3>
           </Link>
 
+          {/* =========================
+              RATING
+          ========================== */}
+
           <div className="mt-3 flex items-center gap-2">
-            <FiStar className="fill-yellow-400 text-yellow-400" />
 
-            <span className="text-sm text-gray-300">
-              {product.rating}
-            </span>
-          </div>
+            <div className="flex items-center gap-1 text-yellow-400">
+              <FiStar
+                className="fill-current"
+              />
 
-          <div className="mt-5 flex items-center justify-between">
-
-            <div>
-              <p className="text-xl font-bold text-blue-400">
-                {formatPrice(product.price)}
-              </p>
-
-              <p className="text-sm text-gray-500 line-through">
-                {formatPrice(product.oldPrice)}
-              </p>
+              <span className="text-sm font-bold">
+                {product.rating}
+              </span>
             </div>
 
-            <button
-              type="button"
-              onClick={addToCart}
-              className="rounded-xl bg-blue-600 p-3 text-white transition hover:bg-blue-500"
-            >
-              <FiShoppingBag size={19} />
-            </button>
+            <span className="text-xs text-gray-600">
+              |
+            </span>
+
+            <span className="text-xs text-gray-500">
+              {product.stock} in stock
+            </span>
 
           </div>
+
+          {/* =========================
+              PRICE
+          ========================== */}
+
+          <div className="mt-5 flex items-end gap-3">
+
+            <span className="text-2xl font-black text-white">
+              {formatPrice(
+                product.price
+              )}
+            </span>
+
+            {product.oldPrice && (
+              <span className="pb-1 text-sm text-gray-500 line-through">
+                {formatPrice(
+                  product.oldPrice
+                )}
+              </span>
+            )}
+
+          </div>
+
+          {/* =========================
+              ADD TO CART
+          ========================== */}
+
+          <button
+            type="button"
+            onClick={
+              handleAddToCart
+            }
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 font-bold text-white transition duration-300 hover:bg-blue-500 active:scale-[0.98]"
+          >
+            <FiShoppingCart
+              size={19}
+            />
+
+            Add to Cart
+          </button>
 
         </div>
 
-      </div>
+      </article>
+
+      {/* =========================
+          LOGIN REQUIRED POPUP
+      ========================== */}
 
       <LoginRequiredModal
-        open={showLoginModal}
+        open={
+          loginModalOpen
+        }
         onClose={() =>
-          setShowLoginModal(false)
+          setLoginModalOpen(false)
         }
       />
     </>

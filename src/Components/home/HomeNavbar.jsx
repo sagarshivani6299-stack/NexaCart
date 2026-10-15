@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import {
   NavLink,
   Link,
@@ -14,6 +15,7 @@ import {
 } from "react-icons/fi";
 
 import { useAuth } from "../../context/AuthContext";
+
 import LoginRequiredModal from "../Common/LoginRequiredModal";
 
 const HomeNavbar = () => {
@@ -30,10 +32,118 @@ const HomeNavbar = () => {
   ] = useState(false);
 
   // =========================
+  // CART + WISHLIST COUNT
+  // =========================
+
+  const [cartCount, setCartCount] =
+    useState(0);
+
+  const [
+    wishlistCount,
+    setWishlistCount,
+  ] = useState(0);
+
+  // =========================
+  // UPDATE COUNTS
+  // =========================
+
+  useEffect(() => {
+    const updateCounts = () => {
+      // Customer login nahi hai
+      if (
+        !user ||
+        user.role !== "customer"
+      ) {
+        setCartCount(0);
+        setWishlistCount(0);
+        return;
+      }
+
+      // User specific keys
+      const cartKey =
+        `nexaCart_${user.email}`;
+
+      const wishlistKey =
+        `nexaWishlist_${user.email}`;
+
+      // Cart data
+      const cart =
+        JSON.parse(
+          localStorage.getItem(
+            cartKey
+          )
+        ) || [];
+
+      // Wishlist data
+      const wishlist =
+        JSON.parse(
+          localStorage.getItem(
+            wishlistKey
+          )
+        ) || [];
+
+      // IMPORTANT:
+      // Unique products count
+      // quantity count nahi
+      setCartCount(cart.length);
+
+      // Wishlist unique products
+      setWishlistCount(
+        wishlist.length
+      );
+    };
+
+    // First load par
+    updateCounts();
+
+    // ProductCard se cart update
+    window.addEventListener(
+      "cartUpdated",
+      updateCounts
+    );
+
+    // ProductCard se wishlist update
+    window.addEventListener(
+      "wishlistUpdated",
+      updateCounts
+    );
+
+    return () => {
+      window.removeEventListener(
+        "cartUpdated",
+        updateCounts
+      );
+
+      window.removeEventListener(
+        "wishlistUpdated",
+        updateCounts
+      );
+    };
+  }, [user]);
+
+  // =========================
+  // CART CLICK
+  // =========================
+
+  const handleCart = () => {
+    // Login nahi hai
+    if (
+      !user ||
+      user.role !== "customer"
+    ) {
+      setLoginModalOpen(true);
+      return;
+    }
+
+    navigate("/cart");
+  };
+
+  // =========================
   // WISHLIST CLICK
   // =========================
 
   const handleWishlist = () => {
+    // Login nahi hai
     if (
       !user ||
       user.role !== "customer"
@@ -46,25 +156,23 @@ const HomeNavbar = () => {
   };
 
   // =========================
-  // CART CLICK
+  // LOGOUT
   // =========================
-
-  const handleCart = () => {
-    if (
-      !user ||
-      user.role !== "customer"
-    ) {
-      setLoginModalOpen(true);
-      return;
-    }
-
-    navigate("/cart");
-  };
 
   const handleLogout = () => {
     logout();
+
+    setCartCount(0);
+    setWishlistCount(0);
+
+    setMenuOpen(false);
+
     navigate("/");
   };
+
+  // =========================
+  // NAVLINK STYLE
+  // =========================
 
   const navClass = ({
     isActive,
@@ -81,7 +189,9 @@ const HomeNavbar = () => {
 
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
 
-          {/* LOGO */}
+          {/* =====================
+              LOGO
+          ====================== */}
 
           <Link
             to="/"
@@ -93,12 +203,15 @@ const HomeNavbar = () => {
             Cart
           </Link>
 
-          {/* DESKTOP NAVIGATION */}
+          {/* =====================
+              DESKTOP NAV
+          ====================== */}
 
           <nav className="hidden items-center gap-8 md:flex">
 
             <NavLink
               to="/"
+              end
               className={navClass}
             >
               Home
@@ -127,30 +240,41 @@ const HomeNavbar = () => {
 
           </nav>
 
-          {/* RIGHT SIDE */}
+          {/* =====================
+              RIGHT SIDE
+          ====================== */}
 
           <div className="flex items-center gap-3">
 
-            {/* ======================
+            {/* =====================
                 WISHLIST
                 ALWAYS VISIBLE
-            ======================= */}
+            ====================== */}
 
             <button
               type="button"
               onClick={
                 handleWishlist
               }
-              className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-gray-300 transition hover:border-pink-500 hover:text-pink-400"
+              className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-gray-300 transition hover:border-red-500 hover:text-red-400"
               title="Wishlist"
             >
               <FiHeart size={20} />
+
+              {/* WISHLIST COUNT */}
+
+              {wishlistCount > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
+                  {wishlistCount}
+                </span>
+              )}
+
             </button>
 
-            {/* ======================
+            {/* =====================
                 CART
                 ALWAYS VISIBLE
-            ======================= */}
+            ====================== */}
 
             <button
               type="button"
@@ -161,15 +285,26 @@ const HomeNavbar = () => {
               <FiShoppingCart
                 size={20}
               />
+
+              {/* CART COUNT */}
+
+              {cartCount > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-bold text-white">
+                  {cartCount}
+                </span>
+              )}
+
             </button>
 
-            {/* ======================
-                LOGIN / ACCOUNT
-            ======================= */}
+            {/* =====================
+                LOGIN / USER
+            ====================== */}
 
             {!user ||
             user.role !==
               "customer" ? (
+
+              // NOT LOGGED IN
 
               <Link
                 to="/login"
@@ -180,31 +315,39 @@ const HomeNavbar = () => {
 
             ) : (
 
+              // LOGGED IN
+
               <div className="group relative hidden sm:block">
+
+                {/* USER BUTTON */}
 
                 <button
                   type="button"
-                  className="flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 text-gray-300 transition hover:border-blue-500"
+                  className="flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 text-gray-300 transition hover:border-blue-500 hover:text-blue-400"
                 >
                   <FiUser />
 
-                  {user.name}
+                  <span className="max-w-[100px] truncate">
+                    {user.name}
+                  </span>
                 </button>
 
-                {/* DROPDOWN */}
+                {/* =====================
+                    ACCOUNT DROPDOWN
+                ====================== */}
 
-                <div className="invisible absolute right-0 top-full z-50 mt-2 w-52 translate-y-2 rounded-xl border border-slate-700 bg-slate-900 p-2 opacity-0 shadow-2xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                <div className="invisible absolute right-0 top-full z-50 mt-2 w-52 translate-y-2 rounded-xl border border-slate-700 bg-slate-900 p-2 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
 
                   <Link
                     to="/profile"
-                    className="block rounded-lg px-4 py-3 text-sm text-gray-300 hover:bg-slate-800 hover:text-blue-400"
+                    className="block rounded-lg px-4 py-3 text-sm text-gray-300 transition hover:bg-slate-800 hover:text-blue-400"
                   >
                     My Profile
                   </Link>
 
                   <Link
                     to="/orders"
-                    className="block rounded-lg px-4 py-3 text-sm text-gray-300 hover:bg-slate-800 hover:text-blue-400"
+                    className="block rounded-lg px-4 py-3 text-sm text-gray-300 transition hover:bg-slate-800 hover:text-blue-400"
                   >
                     My Orders
                   </Link>
@@ -212,9 +355,35 @@ const HomeNavbar = () => {
                   <button
                     type="button"
                     onClick={
+                      handleWishlist
+                    }
+                    className="block w-full rounded-lg px-4 py-3 text-left text-sm text-gray-300 transition hover:bg-slate-800 hover:text-red-400"
+                  >
+                    Wishlist
+                    {wishlistCount > 0 &&
+                      ` (${wishlistCount})`}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleCart
+                    }
+                    className="block w-full rounded-lg px-4 py-3 text-left text-sm text-gray-300 transition hover:bg-slate-800 hover:text-blue-400"
+                  >
+                    Cart
+                    {cartCount > 0 &&
+                      ` (${cartCount})`}
+                  </button>
+
+                  <div className="my-1 border-t border-slate-800" />
+
+                  <button
+                    type="button"
+                    onClick={
                       handleLogout
                     }
-                    className="w-full rounded-lg px-4 py-3 text-left text-sm text-red-400 hover:bg-slate-800"
+                    className="w-full rounded-lg px-4 py-3 text-left text-sm text-red-400 transition hover:bg-slate-800"
                   >
                     Logout
                   </button>
@@ -225,7 +394,9 @@ const HomeNavbar = () => {
 
             )}
 
-            {/* MOBILE MENU */}
+            {/* =====================
+                MOBILE BUTTON
+            ====================== */}
 
             <button
               type="button"
@@ -247,7 +418,9 @@ const HomeNavbar = () => {
 
         </div>
 
-        {/* MOBILE MENU */}
+        {/* =====================
+            MOBILE MENU
+        ====================== */}
 
         {menuOpen && (
 
@@ -257,6 +430,7 @@ const HomeNavbar = () => {
 
               <NavLink
                 to="/"
+                end
                 onClick={() =>
                   setMenuOpen(false)
                 }
@@ -295,6 +469,10 @@ const HomeNavbar = () => {
                 Contact
               </NavLink>
 
+              {/* =====================
+                  LOGIN MOBILE
+              ====================== */}
+
               {!user ||
               user.role !==
                 "customer" ? (
@@ -304,7 +482,7 @@ const HomeNavbar = () => {
                   onClick={() =>
                     setMenuOpen(false)
                   }
-                  className="rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold"
+                  className="rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white"
                 >
                   Login
                 </Link>
@@ -312,25 +490,75 @@ const HomeNavbar = () => {
               ) : (
 
                 <>
+                  {/* USER INFO */}
+
+                  <div className="border-t border-slate-800 pt-4">
+
+                    <p className="text-xs text-gray-500">
+                      Signed in as
+                    </p>
+
+                    <p className="mt-1 font-semibold text-white">
+                      {user.name}
+                    </p>
+
+                  </div>
+
+                  {/* PROFILE */}
+
                   <Link
                     to="/profile"
                     onClick={() =>
                       setMenuOpen(false)
                     }
-                    className="text-gray-300"
+                    className="text-gray-300 transition hover:text-blue-400"
                   >
                     My Profile
                   </Link>
+
+                  {/* ORDERS */}
 
                   <Link
                     to="/orders"
                     onClick={() =>
                       setMenuOpen(false)
                     }
-                    className="text-gray-300"
+                    className="text-gray-300 transition hover:text-blue-400"
                   >
                     My Orders
                   </Link>
+
+                  {/* WISHLIST */}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleWishlist();
+                      setMenuOpen(false);
+                    }}
+                    className="text-left text-gray-300 transition hover:text-red-400"
+                  >
+                    Wishlist
+                    {wishlistCount > 0 &&
+                      ` (${wishlistCount})`}
+                  </button>
+
+                  {/* CART */}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCart();
+                      setMenuOpen(false);
+                    }}
+                    className="text-left text-gray-300 transition hover:text-blue-400"
+                  >
+                    Cart
+                    {cartCount > 0 &&
+                      ` (${cartCount})`}
+                  </button>
+
+                  {/* LOGOUT */}
 
                   <button
                     type="button"
@@ -353,10 +581,14 @@ const HomeNavbar = () => {
 
       </header>
 
-      {/* LOGIN REQUIRED POPUP */}
+      {/* =========================
+          LOGIN REQUIRED POPUP
+      ========================== */}
 
       <LoginRequiredModal
-        open={loginModalOpen}
+        open={
+          loginModalOpen
+        }
         onClose={() =>
           setLoginModalOpen(false)
         }
