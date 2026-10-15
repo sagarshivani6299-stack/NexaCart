@@ -126,16 +126,6 @@ const Home = () => {
                 <FiArrowRight className="transition group-hover:translate-x-1" />
               </Link>
 
-
-              <Link
-                to="/content"
-                className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-7 py-4 font-semibold text-gray-200 transition duration-300 hover:border-blue-500 hover:text-blue-400"
-              >
-                <FiShoppingBag />
-
-                View Dashboard
-              </Link>
-
             </div>
 
 

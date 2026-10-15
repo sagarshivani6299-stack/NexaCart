@@ -1,13 +1,48 @@
-import { useMemo, useState } from "react";
-import { FiSearch, FiFilter } from "react-icons/fi";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  FiSearch,
+  FiChevronDown,
+  FiLoader,
+} from "react-icons/fi";
+
+import {
+  useInView,
+} from "react-intersection-observer";
 
 import ProductCard from "../Components/Common/ProductCard";
-import { products } from "../data/products";
+
+import {
+  products,
+} from "../data/products";
+
+const PRODUCTS_PER_LOAD = 8;
 
 const Shop = () => {
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
-  const [sort, setSort] = useState("default");
+  const [search, setSearch] =
+    useState("");
+
+  const [category, setCategory] =
+    useState("All");
+
+  const [sort, setSort] =
+    useState("default");
+
+  // शुरुआत में सिर्फ 8
+  const [visibleCount, setVisibleCount] =
+    useState(PRODUCTS_PER_LOAD);
+
+  /*
+    यह element जब screen में आएगा
+    तब inView = true होगा
+  */
+  const { ref, inView } = useInView({
+    threshold: 0.1,
+  });
 
   const categories = [
     "All",
@@ -17,117 +52,372 @@ const Shop = () => {
     "Electronics",
   ];
 
+  // =================================
+  // SEARCH + FILTER + SORT
+  // =================================
+
   const filteredProducts = useMemo(() => {
-    let result = products.filter((product) => {
-      const matchesSearch = product.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
+    let result = [...products];
 
-      const matchesCategory =
-        category === "All" || product.category === category;
-
-      return matchesSearch && matchesCategory;
-    });
-
-    if (sort === "low") {
-      result = [...result].sort((a, b) => a.price - b.price);
+    // SEARCH
+    if (search.trim()) {
+      result = result.filter((product) =>
+        product.name
+          .toLowerCase()
+          .includes(
+            search.toLowerCase()
+          )
+      );
     }
 
-    if (sort === "high") {
-      result = [...result].sort((a, b) => b.price - a.price);
+    // CATEGORY
+    if (category !== "All") {
+      result = result.filter(
+        (product) =>
+          product.category === category
+      );
+    }
+
+    // SORT
+    if (sort === "low-high") {
+      result.sort(
+        (a, b) =>
+          a.price - b.price
+      );
+    }
+
+    if (sort === "high-low") {
+      result.sort(
+        (a, b) =>
+          b.price - a.price
+      );
+    }
+
+    if (sort === "rating") {
+      result.sort(
+        (a, b) =>
+          b.rating - a.rating
+      );
     }
 
     return result;
-  }, [search, category, sort]);
+  }, [
+    search,
+    category,
+    sort,
+  ]);
+
+  // =================================
+  // PRODUCTS CURRENTLY VISIBLE
+  // =================================
+
+  const visibleProducts =
+    filteredProducts.slice(
+      0,
+      visibleCount
+    );
+
+  const hasMore =
+    visibleCount <
+    filteredProducts.length;
+
+  // =================================
+  // INFINITE SCROLL
+  // =================================
+
+  useEffect(() => {
+    if (!inView || !hasMore) {
+      return;
+    }
+
+    /*
+      थोड़ा delay intentionally रखा है
+      ताकि API loading जैसा experience मिले.
+    */
+
+    const timer = setTimeout(() => {
+      setVisibleCount((previous) =>
+        Math.min(
+          previous +
+            PRODUCTS_PER_LOAD,
+
+          filteredProducts.length
+        )
+      );
+    }, 700);
+
+    return () =>
+      clearTimeout(timer);
+
+  }, [
+    inView,
+    hasMore,
+    filteredProducts.length,
+  ]);
+
+  // =================================
+  // SEARCH/FILTER CHANGE
+  // वापस 8 products
+  // =================================
+
+  useEffect(() => {
+    setVisibleCount(
+      PRODUCTS_PER_LOAD
+    );
+  }, [
+    search,
+    category,
+    sort,
+  ]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <section className="min-h-screen bg-slate-950 px-6 py-16 text-white">
 
-      <section className="relative overflow-hidden border-b border-slate-800 bg-gradient-to-r from-slate-950 via-blue-950 to-slate-950 px-6 py-24 text-center">
+      <div className="mx-auto max-w-7xl">
 
-        <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-5 py-2 text-sm text-blue-400">
-          EXPLORE OUR COLLECTION
-        </span>
+        {/* =========================
+            HEADING
+        ========================== */}
 
-        <h1 className="mt-7 text-5xl font-black md:text-6xl">
-          Discover Your
-          <span className="text-blue-400"> Style.</span>
-        </h1>
+        <div className="text-center">
 
-        <p className="mx-auto mt-5 max-w-2xl text-lg text-gray-400">
-          Discover carefully selected fashion, accessories,
-          electronics and everyday essentials.
-        </p>
-      </section>
+          <p className="font-semibold uppercase tracking-[0.25em] text-blue-400">
+            NexaCart Collection
+          </p>
 
-      <section className="mx-auto max-w-7xl px-6 py-16">
+          <h1 className="mt-4 text-4xl font-black md:text-5xl">
+            Explore Products
+          </h1>
 
-        <div className="mb-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <p className="mx-auto mt-5 max-w-2xl leading-7 text-gray-400">
+            Discover products designed
+            for your everyday lifestyle.
+          </p>
 
-          <div className="relative w-full lg:w-96">
-            <FiSearch className="absolute left-4 top-4 text-gray-400" />
+        </div>
+
+
+        {/* =========================
+            SEARCH
+        ========================== */}
+
+        <div className="mt-12">
+
+          <div className="relative">
+
+            <FiSearch
+              className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500"
+              size={20}
+            />
 
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(
+                  e.target.value
+                )
+              }
               placeholder="Search products..."
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 pl-11 pr-4 text-white outline-none focus:border-blue-500"
+              className="w-full rounded-2xl border border-slate-800 bg-slate-900 py-4 pl-14 pr-5 text-white outline-none transition placeholder:text-gray-600 focus:border-blue-500"
             />
+
           </div>
 
-          <div className="flex items-center gap-3">
-            <FiFilter className="text-blue-400" />
+        </div>
+
+
+        {/* =========================
+            FILTER + SORT
+        ========================== */}
+
+        <div className="mt-6 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+
+          {/* CATEGORY */}
+
+          <div className="flex flex-wrap gap-3">
+
+            {categories.map(
+              (item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() =>
+                    setCategory(item)
+                  }
+                  className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition ${
+                    category === item
+                      ? "bg-blue-600 text-white"
+                      : "border border-slate-700 bg-slate-900 text-gray-400 hover:border-blue-500 hover:text-blue-400"
+                  }`}
+                >
+                  {item}
+                </button>
+              )
+            )}
+
+          </div>
+
+
+          {/* SORT */}
+
+          <div className="relative">
 
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="rounded-xl border border-slate-700 bg-slate-900 px-5 py-3 outline-none"
+              onChange={(e) =>
+                setSort(
+                  e.target.value
+                )
+              }
+              className="appearance-none rounded-xl border border-slate-700 bg-slate-900 py-3 pl-5 pr-12 text-sm text-gray-300 outline-none focus:border-blue-500"
             >
-              <option value="default">Featured</option>
-              <option value="low">Price: Low to High</option>
-              <option value="high">Price: High to Low</option>
+              <option value="default">
+                Sort Products
+              </option>
+
+              <option value="low-high">
+                Price: Low to High
+              </option>
+
+              <option value="high-low">
+                Price: High to Low
+              </option>
+
+              <option value="rating">
+                Highest Rated
+              </option>
+
             </select>
+
+            <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-500" />
+
           </div>
+
         </div>
 
-        <div className="mb-10 flex flex-wrap gap-3">
-          {categories.map((item) => (
-            <button
-              key={item}
-              onClick={() => setCategory(item)}
-              className={`rounded-full px-5 py-2.5 font-medium transition ${
-                category === item
-                  ? "bg-blue-600 text-white"
-                  : "border border-slate-700 bg-slate-900 text-gray-400 hover:border-blue-500"
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
 
-        <div className="mb-7 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Our Products</h2>
+        {/* =========================
+            RESULT INFO
+        ========================== */}
 
-          <p className="text-sm text-gray-400">
-            {filteredProducts.length} products found
+        <div className="mt-8 flex items-center justify-between">
+
+          <p className="text-sm text-gray-500">
+
+            Showing{" "}
+
+            <span className="font-semibold text-white">
+              {visibleProducts.length}
+            </span>
+
+            {" "}of{" "}
+
+            <span className="font-semibold text-white">
+              {filteredProducts.length}
+            </span>
+
+            {" "}products
+
           </p>
+
         </div>
 
-        {filteredProducts.length ? (
-          <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+
+        {/* =========================
+            PRODUCTS
+        ========================== */}
+
+        {visibleProducts.length > 0 ? (
+
+          <div className="mt-8 grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+
+            {visibleProducts.map(
+              (product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                />
+              )
+            )}
+
           </div>
+
         ) : (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-16 text-center text-gray-400">
-            No products found. Try another search.
+
+          <div className="py-24 text-center">
+
+            <FiSearch
+              size={50}
+              className="mx-auto text-gray-700"
+            />
+
+            <h2 className="mt-5 text-2xl font-bold">
+              No products found
+            </h2>
+
+            <p className="mt-2 text-gray-500">
+              Try another search or
+              category.
+            </p>
+
           </div>
+
         )}
-      </section>
-    </div>
+
+
+        {/* =========================
+            INFINITE SCROLL TRIGGER
+        ========================== */}
+
+        {hasMore && (
+
+          <div
+            ref={ref}
+            className="flex items-center justify-center py-14"
+          >
+
+            <div className="flex items-center gap-3 text-blue-400">
+
+              <FiLoader
+                className="animate-spin"
+                size={22}
+              />
+
+              <span className="font-semibold">
+                Loading more products...
+              </span>
+
+            </div>
+
+          </div>
+
+        )}
+
+
+        {/* =========================
+            ALL PRODUCTS LOADED
+        ========================== */}
+
+        {!hasMore &&
+          filteredProducts.length > 0 && (
+
+            <div className="py-14 text-center">
+
+              <p className="text-sm text-gray-500">
+                You've reached the end.
+                All{" "}
+                {filteredProducts.length}{" "}
+                products are loaded.
+              </p>
+
+            </div>
+
+          )}
+
+      </div>
+
+    </section>
   );
 };
 

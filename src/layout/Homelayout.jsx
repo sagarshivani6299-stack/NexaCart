@@ -1,11 +1,13 @@
-import { Outlet } from "react-router-dom";
+import {
+  Outlet,
+} from "react-router-dom";
 
 import HomeNavbar from "../Components/home/HomeNavbar";
 import HomeFooter from "../Components/home/HomeFooter";
 
 const HomeLayout = () => {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-white">
+    <div className="flex min-h-screen flex-col bg-slate-950">
 
       <HomeNavbar />
 

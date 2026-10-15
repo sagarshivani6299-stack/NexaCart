@@ -1,100 +1,207 @@
-import { Link, useNavigate } from "react-router-dom";
-import { FiUser, FiMail, FiLock, FiArrowRight } from "react-icons/fi";
+import {
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  FiUser,
+  FiMail,
+  FiLock,
+} from "react-icons/fi";
 
 const Register = () => {
   const navigate = useNavigate();
 
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+
+  const [error, setError] =
+    useState("");
+
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (
+      form.password !==
+      form.confirmPassword
+    ) {
+      setError(
+        "Passwords do not match."
+      );
+
+      return;
+    }
+
+    const registeredUsers =
+      JSON.parse(
+        localStorage.getItem(
+          "nexaRegisteredUsers"
+        ) || "[]"
+      );
+
+    const alreadyExists =
+      registeredUsers.some(
+        (user) =>
+          user.email === form.email
+      );
+
+    if (alreadyExists) {
+      setError(
+        "An account with this email already exists."
+      );
+
+      return;
+    }
+
+    const newUser = {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      role: "customer",
+    };
+
+    localStorage.setItem(
+      "nexaRegisteredUsers",
+      JSON.stringify([
+        ...registeredUsers,
+        newUser,
+      ])
+    );
+
     navigate("/login");
   };
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center gap-16 px-6 py-16 lg:grid lg:grid-cols-2">
+    <section className="mx-auto grid min-h-[calc(100vh-88px)] max-w-7xl items-center gap-12 px-6 py-12 lg:grid-cols-2">
 
-      <div className="hidden lg:block">
+      <div className="hidden overflow-hidden rounded-3xl lg:block">
         <img
-          src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1000&auto=format&fit=crop&q=85"
-          alt="Shopping collection"
-          className="h-[600px] w-full rounded-3xl object-cover"
+          src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=1200&auto=format&fit=crop&q=85"
+          alt="NexaCart"
+          className="h-[650px] w-full object-cover"
         />
       </div>
 
-      <div className="w-full">
-        <p className="font-semibold tracking-widest text-blue-400">
-          JOIN NEXACART
+      <div className="mx-auto w-full max-w-md">
+
+        <p className="font-semibold text-blue-400">
+          CREATE ACCOUNT
         </p>
 
-        <h1 className="mt-4 text-4xl font-black">
-          Create Your Account
+        <h1 className="mt-3 text-4xl font-black text-white">
+          Join NexaCart
         </h1>
 
-        <p className="mt-4 text-gray-400">
-          Join us and discover a better shopping experience.
+        <p className="mt-3 text-gray-400">
+          Create an account to save your cart,
+          wishlist and orders.
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-9 space-y-5">
+        {error && (
+          <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+            {error}
+          </div>
+        )}
 
-          {[
-            {
-              label: "Full Name",
-              type: "text",
-              placeholder: "Your full name",
-              icon: FiUser,
-            },
-            {
-              label: "Email Address",
-              type: "email",
-              placeholder: "you@example.com",
-              icon: FiMail,
-            },
-            {
-              label: "Password",
-              type: "password",
-              placeholder: "Create password",
-              icon: FiLock,
-            },
-          ].map(({ label, type, placeholder, icon: Icon }) => (
-            <div key={label}>
-              <label className="mb-2 block text-sm text-gray-300">
-                {label}
-              </label>
+        <form
+          onSubmit={handleSubmit}
+          className="mt-8 space-y-5"
+        >
 
-              <div className="relative">
-                <Icon className="absolute left-4 top-4 text-gray-500" />
+          <InputField
+            icon={<FiUser />}
+            type="text"
+            name="name"
+            placeholder="Full name"
+            value={form.name}
+            onChange={handleChange}
+          />
 
-                <input
-                  required
-                  type={type}
-                  placeholder={placeholder}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 py-4 pl-12 pr-4 outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-          ))}
+          <InputField
+            icon={<FiMail />}
+            type="email"
+            name="email"
+            placeholder="Email address"
+            value={form.email}
+            onChange={handleChange}
+          />
+
+          <InputField
+            icon={<FiLock />}
+            type="password"
+            name="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+          />
+
+          <InputField
+            icon={<FiLock />}
+            type="password"
+            name="confirmPassword"
+            placeholder="Confirm password"
+            value={form.confirmPassword}
+            onChange={handleChange}
+          />
 
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 py-4 font-bold transition hover:bg-blue-500"
+            className="w-full rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-500"
           >
             Create Account
-            <FiArrowRight />
           </button>
+
         </form>
 
-        <p className="mt-7 text-center text-gray-400">
+        <p className="mt-6 text-center text-gray-400">
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-400">
-            Sign In
+
+          <Link
+            to="/login"
+            className="font-semibold text-blue-400"
+          >
+            Login
           </Link>
         </p>
 
-        <p className="mt-5 text-center text-xs text-gray-500">
-          Demo registration — account details are not saved.
-        </p>
       </div>
-    </div>
+
+    </section>
   );
 };
+
+const InputField = ({
+  icon,
+  ...props
+}) => (
+  <div className="flex items-center rounded-xl border border-slate-700 bg-slate-900 px-4">
+
+    <span className="text-gray-500">
+      {icon}
+    </span>
+
+    <input
+      {...props}
+      required
+      className="w-full bg-transparent px-3 py-4 text-white outline-none"
+    />
+
+  </div>
+);
 
 export default Register;
